@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEnum } from "class-validator";
+import { IsOptional, IsString, IsEnum, IsDateString } from "class-validator";
 import { AttendanceStatus } from "@common/enums/attendance-status.enum";
 
 export class CheckInDto {
@@ -14,6 +14,7 @@ export class OverrideAttendanceDto {
   employeeId!: string;
 
   @IsString()
+  @IsDateString()
   date!: string; // ISO date format YYYY-MM-DD
 
   @IsEnum(AttendanceStatus)

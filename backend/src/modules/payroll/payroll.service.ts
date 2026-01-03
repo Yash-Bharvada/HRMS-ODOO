@@ -4,12 +4,24 @@ import {
   NotFoundException,
   Inject,
 } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Employee } from "@prisma/client";
 import { CreatePayrollDto, UpdatePayrollDto } from "./dto/payroll.dto";
 
 @Injectable()
 export class PayrollService {
   constructor(@Inject("PrismaClient") private prisma: PrismaClient) {}
+
+  private async findEmployeeOrThrow(userId: string): Promise<Employee> {
+    const employee = await this.prisma.employee.findUnique({
+      where: { userId },
+    });
+
+    if (!employee) {
+      throw new NotFoundException("Employee not found");
+    }
+
+    return employee;
+  }
 
   private calculateNetSalary(
     baseSalary: number,
@@ -106,7 +118,9 @@ export class PayrollService {
     return payroll;
   }
 
-  async getMyPayroll(employeeId: string) {
+  async getMyPayroll(userId: string) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
+
     const payrolls = await this.prisma.payroll.findMany({
       where: { employeeId },
       orderBy: { month: "desc" },
@@ -119,7 +133,8 @@ export class PayrollService {
     return payrolls;
   }
 
-  async getPayrollByMonth(employeeId: string, month: string) {
+  async getPayrollByMonth(userId: string, month: string) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
     const [year, monthNum] = month.split("-").map(Number);
     const monthDate = new Date(year, monthNum - 1, 1);
 

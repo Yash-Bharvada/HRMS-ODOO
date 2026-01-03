@@ -1,26 +1,61 @@
-// Application context for global state
-// This will be implemented in task 13
+"use client";
 
-'use client'
+import { createContext, useContext, useEffect, useState } from "react";
+import {
+  AppContextType,
+  AttendanceRecord,
+  LeaveRequest,
+  PayrollData,
+  User,
+} from "@/types";
+import {
+  attendanceService,
+  leaveService,
+  payrollService,
+  userService,
+} from "@/services/data.service";
 
-import { createContext, useContext } from 'react'
-import { AppContextType } from '@/types'
-
-const AppContext = createContext<AppContextType | undefined>(undefined)
+const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  // Implementation will be added in task 13
+  const [employees, setEmployees] = useState<User[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [payroll, setPayroll] = useState<PayrollData[]>([]);
+
+  const refreshData = async () => {
+    const [emp, att, leave, pay] = await Promise.all([
+      userService.getAll(),
+      attendanceService.getAll(),
+      leaveService.getAll(),
+      payrollService.getAll(),
+    ]);
+
+    setEmployees(emp);
+    setAttendance(att);
+    setLeaveRequests(leave);
+    setPayroll(pay);
+  };
+
+  useEffect(() => {
+    refreshData().catch((error) => {
+      console.error("Failed to hydrate app context", error);
+    });
+  }, []);
+
   return (
-    <AppContext.Provider value={undefined}>
+    <AppContext.Provider
+      value={{ employees, attendance, leaveRequests, payroll, refreshData }}
+    >
       {children}
     </AppContext.Provider>
-  )
+  );
 }
 
 export function useApp() {
-  const context = useContext(AppContext)
+  const context = useContext(AppContext);
   if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider')
+    throw new Error("useApp must be used within an AppProvider");
   }
-  return context
+  return context;
 }

@@ -5,7 +5,7 @@ import {
   Inject,
   ConflictException,
 } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Employee } from "@prisma/client";
 import {
   ApplyLeaveDto,
   ApproveLeaveDto,
@@ -18,7 +18,20 @@ import { AttendanceStatus } from "@common/enums/attendance-status.enum";
 export class LeaveService {
   constructor(@Inject("PrismaClient") private prisma: PrismaClient) {}
 
-  async applyLeave(employeeId: string, applyLeaveDto: ApplyLeaveDto) {
+  private async findEmployeeOrThrow(userId: string): Promise<Employee> {
+    const employee = await this.prisma.employee.findUnique({
+      where: { userId },
+    });
+
+    if (!employee) {
+      throw new NotFoundException("Employee not found");
+    }
+
+    return employee;
+  }
+
+  async applyLeave(userId: string, applyLeaveDto: ApplyLeaveDto) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
     const { leaveType, startDate, endDate, reason } = applyLeaveDto;
 
     const start = new Date(startDate);
@@ -60,7 +73,9 @@ export class LeaveService {
     });
   }
 
-  async getMyLeaveRequests(employeeId: string) {
+  async getMyLeaveRequests(userId: string) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
+
     return this.prisma.leave.findMany({
       where: { employeeId },
       include: {
