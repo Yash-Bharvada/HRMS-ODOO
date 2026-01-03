@@ -67,7 +67,7 @@ export interface SignupData {
 export interface AuthContextType {
   user: User | null
   login: (credentials: LoginCredentials) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
   isAuthenticated: boolean
 }
