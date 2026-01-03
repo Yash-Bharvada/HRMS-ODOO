@@ -9,6 +9,7 @@ import * as fc from 'fast-check'
 import { render } from '@testing-library/react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { AuthProvider } from '@/contexts/auth-context'
+import { ToastProvider } from '@/components/ui/toast'
 import { User } from '@/types'
 
 // Mock the auth service to control authentication state
@@ -50,6 +51,13 @@ const pageContentArbitrary = fc.record({
   pageType: fc.constantFrom('dashboard', 'profile', 'attendance', 'leave', 'payroll', 'employees')
 })
 
+// Test wrapper component that provides all necessary contexts
+const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+  return React.createElement(ToastProvider, null,
+    React.createElement(AuthProvider, null, children)
+  )
+}
+
 // Test component that represents different page content
 const TestPageContent = ({ title, content, pageType }: { title: string, content: string, pageType: string }) => {
   return React.createElement('div', { 
@@ -73,7 +81,7 @@ describe('Consistent Layout Across Protected Routes Properties', () => {
         authService.getCurrentUser.mockReturnValue(user)
 
         const { container } = render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(AppLayout, { 
               title: pageData.title,
               currentPath: `/${pageData.pageType}`

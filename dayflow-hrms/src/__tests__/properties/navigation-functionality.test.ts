@@ -10,6 +10,7 @@ import { render, fireEvent } from '@testing-library/react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Navbar } from '@/components/layout/navbar'
 import { AuthProvider } from '@/contexts/auth-context'
+import { ToastProvider } from '@/components/ui/toast'
 import { User } from '@/types'
 
 // Mock the auth service to control authentication state
@@ -46,6 +47,13 @@ const navigationPathArbitrary = fc.constantFrom(
   '/payroll',
   '/employees'
 )
+
+// Test wrapper component that provides all necessary contexts
+const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+  return React.createElement(ToastProvider, null,
+    React.createElement(AuthProvider, null, children)
+  )
+}
 
 describe('Navigation Functionality Properties', () => {
   beforeEach(() => {

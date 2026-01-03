@@ -5,6 +5,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { AuthContextType, LoginCredentials, User } from '@/types'
 import { authService } from '@/services/auth.service'
+import { classifyError, getUserFriendlyMessage, logError } from '@/utils/error-handler'
+import { useToast } from '@/components/ui/toast'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -15,6 +17,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { error: showError, success: showSuccess } = useToast()
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -28,8 +31,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const loggedInUser = await authService.login(credentials)
       setUser(loggedInUser)
+      showSuccess('Login successful', `Welcome back, ${loggedInUser.fullName}!`)
     } catch (error) {
-      throw error
+      const appError = classifyError(error)
+      logError(appError, { action: 'login' })
+      showError('Login failed', getUserFriendlyMessage(appError))
+      throw appError
     } finally {
       setIsLoading(false)
     }
@@ -40,10 +47,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await authService.logout()
       setUser(null)
+      showSuccess('Logged out', 'You have been successfully logged out')
     } catch (error) {
-      console.error('Logout error:', error)
+      const appError = classifyError(error)
+      logError(appError, { action: 'logout' })
       // Even if logout fails, clear the user state
       setUser(null)
+      showError('Logout warning', 'There was an issue logging out, but you have been signed out locally')
     } finally {
       setIsLoading(false)
     }

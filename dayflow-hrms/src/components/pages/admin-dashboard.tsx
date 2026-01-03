@@ -1,30 +1,64 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Users, Clock, FileText, CheckCircle, XCircle } from 'lucide-react'
+import { Users, Clock, FileText, CheckCircle, XCircle, Plus, X } from 'lucide-react'
 import { DashboardCard } from '../ui/dashboard-card'
 import { DataTable } from '../ui/data-table'
 import { Button } from '../ui/button'
+import { Input } from '../ui/input'
 import { LoadingSpinner } from '../ui/loading-spinner'
+import { useToast } from '../ui/toast'
 import { User, LeaveRequest, AttendanceRecord, DataTableColumn } from '../../types'
-import { mockUsers, mockLeaveRequests, mockAttendance } from '../../services/mock-data'
+import { userService, leaveService, attendanceService } from '../../services/data.service'
+
+interface AddEmployeeForm {
+  fullName: string
+  email: string
+  employeeId: string
+  role: 'employee' | 'admin'
+  phone: string
+  address: string
+  salary: string
+}
+
+interface FormErrors {
+  [key: string]: string
+}
 
 export function AdminDashboard() {
   const [employees, setEmployees] = useState<User[]>([])
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAddEmployee, setShowAddEmployee] = useState(false)
+  const [addingEmployee, setAddingEmployee] = useState(false)
+  const { success, error } = useToast()
+
+  // Add employee form state
+  const [addEmployeeForm, setAddEmployeeForm] = useState<AddEmployeeForm>({
+    fullName: '',
+    email: '',
+    employeeId: '',
+    role: 'employee',
+    phone: '',
+    address: '',
+    salary: ''
+  })
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
 
   // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500))
+        const [employeeData, leaveData, attendanceData] = await Promise.all([
+          userService.getAll(),
+          leaveService.getAll(),
+          attendanceService.getAll()
+        ])
         
-        setEmployees(mockUsers)
-        setLeaveRequests(mockLeaveRequests)
-        setAttendance(mockAttendance)
+        setEmployees(employeeData)
+        setLeaveRequests(leaveData)
+        setAttendance(attendanceData)
       } catch (error) {
         console.error('Error loading admin dashboard data:', error)
       } finally {
@@ -38,20 +72,96 @@ export function AdminDashboard() {
   // Handle leave request approval/rejection
   const handleLeaveAction = async (leaveId: string, action: 'approved' | 'rejected', comment?: string) => {
     try {
-      setLeaveRequests(prev => 
-        prev.map(request => 
-          request.id === leaveId 
-            ? { 
-                ...request, 
-                status: action, 
-                adminComment: comment || `Request ${action}`,
-                updatedAt: new Date()
-              }
-            : request
-        )
-      )
+      if (action === 'approved') {
+        await (leaveService as any).approveRequest(leaveId, comment || 'Request approved')
+      } else {
+        await (leaveService as any).rejectRequest(leaveId, comment || 'Request rejected')
+      }
+      
+      // Reload leave requests
+      const updatedLeaveRequests = await leaveService.getAll()
+      setLeaveRequests(updatedLeaveRequests)
     } catch (error) {
       console.error('Error updating leave request:', error)
+    }
+  }
+
+  // Validate add employee form
+  const validateAddEmployeeForm = (): boolean => {
+    const errors: FormErrors = {}
+
+    if (!addEmployeeForm.fullName.trim()) {
+      errors.fullName = 'Full name is required'
+    }
+
+    if (!addEmployeeForm.email.trim()) {
+      errors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addEmployeeForm.email)) {
+      errors.email = 'Please enter a valid email address'
+    } else if (employees.some(emp => emp.email === addEmployeeForm.email)) {
+      errors.email = 'Email already exists'
+    }
+
+    if (!addEmployeeForm.employeeId.trim()) {
+      errors.employeeId = 'Employee ID is required'
+    } else if (employees.some(emp => emp.employeeId === addEmployeeForm.employeeId)) {
+      errors.employeeId = 'Employee ID already exists'
+    }
+
+    if (addEmployeeForm.salary && (isNaN(Number(addEmployeeForm.salary)) || Number(addEmployeeForm.salary) < 0)) {
+      errors.salary = 'Salary must be a positive number'
+    }
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  // Handle add employee form submission
+  const handleAddEmployee = async () => {
+    if (!validateAddEmployeeForm()) return
+
+    setAddingEmployee(true)
+    try {
+      const newEmployee: Omit<User, 'id' | 'createdAt' | 'updatedAt'> = {
+        fullName: addEmployeeForm.fullName.trim(),
+        email: addEmployeeForm.email.trim(),
+        employeeId: addEmployeeForm.employeeId.trim(),
+        role: addEmployeeForm.role,
+        phone: addEmployeeForm.phone.trim() || undefined,
+        address: addEmployeeForm.address.trim() || undefined,
+        salary: addEmployeeForm.salary ? Number(addEmployeeForm.salary) : undefined
+      }
+
+      const createdEmployee = await userService.create(newEmployee)
+      setEmployees(prev => [...prev, createdEmployee])
+      
+      // Reset form and close modal
+      setAddEmployeeForm({
+        fullName: '',
+        email: '',
+        employeeId: '',
+        role: 'employee',
+        phone: '',
+        address: '',
+        salary: ''
+      })
+      setFormErrors({})
+      setShowAddEmployee(false)
+      
+      success('Employee Added', `${createdEmployee.fullName} has been added successfully`)
+    } catch (err) {
+      error('Failed to Add Employee', err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setAddingEmployee(false)
+    }
+  }
+
+  // Handle form input changes
+  const handleFormChange = (field: keyof AddEmployeeForm, value: string) => {
+    setAddEmployeeForm(prev => ({ ...prev, [field]: value }))
+    // Clear error when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => ({ ...prev, [field]: '' }))
     }
   }
 
@@ -181,6 +291,18 @@ export function AdminDashboard() {
       sortable: false
     },
     {
+      key: 'salary',
+      label: 'Salary',
+      sortable: true,
+      render: (value) => (
+        value ? new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 0
+        }).format(value) : 'Not set'
+      )
+    },
+    {
       key: 'createdAt',
       label: 'Joined Date',
       sortable: true,
@@ -248,11 +370,17 @@ export function AdminDashboard() {
 
       {/* Employee List Section */}
       <div className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">Employee List</h2>
-          <p className="text-muted-foreground">
-            View and manage all employees
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground">Employee List</h2>
+            <p className="text-muted-foreground">
+              View and manage all employees
+            </p>
+          </div>
+          <Button onClick={() => setShowAddEmployee(true)} className="flex items-center space-x-2">
+            <Plus className="h-4 w-4" />
+            <span>Add Employee</span>
+          </Button>
         </div>
         <DataTable
           data={employees}
@@ -260,6 +388,117 @@ export function AdminDashboard() {
           className="bg-card"
         />
       </div>
+
+      {/* Add Employee Modal */}
+      {showAddEmployee && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddEmployee(false)
+            }
+          }}
+        >
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-card-foreground">Add New Employee</h3>
+              <button
+                onClick={() => setShowAddEmployee(false)}
+                className="text-muted-foreground hover:text-card-foreground transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleAddEmployee(); }} className="space-y-4">
+              <Input
+                label="Full Name *"
+                value={addEmployeeForm.fullName}
+                onChange={(e) => handleFormChange('fullName', e.target.value)}
+                error={formErrors.fullName}
+                placeholder="Enter full name"
+              />
+
+              <Input
+                label="Email *"
+                type="email"
+                value={addEmployeeForm.email}
+                onChange={(e) => handleFormChange('email', e.target.value)}
+                error={formErrors.email}
+                placeholder="Enter email address"
+              />
+
+              <Input
+                label="Employee ID *"
+                value={addEmployeeForm.employeeId}
+                onChange={(e) => handleFormChange('employeeId', e.target.value)}
+                error={formErrors.employeeId}
+                placeholder="Enter employee ID (e.g., EMP006)"
+              />
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-foreground">
+                  Role *
+                </label>
+                <select
+                  value={addEmployeeForm.role}
+                  onChange={(e) => handleFormChange('role', e.target.value as 'employee' | 'admin')}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="employee">Employee</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <Input
+                label="Phone"
+                value={addEmployeeForm.phone}
+                onChange={(e) => handleFormChange('phone', e.target.value)}
+                error={formErrors.phone}
+                placeholder="Enter phone number"
+              />
+
+              <Input
+                label="Address"
+                value={addEmployeeForm.address}
+                onChange={(e) => handleFormChange('address', e.target.value)}
+                error={formErrors.address}
+                placeholder="Enter address"
+              />
+
+              <Input
+                label="Salary"
+                type="number"
+                value={addEmployeeForm.salary}
+                onChange={(e) => handleFormChange('salary', e.target.value)}
+                error={formErrors.salary}
+                placeholder="Enter salary amount"
+                min="0"
+                step="1000"
+              />
+
+              <div className="flex space-x-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddEmployee(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  loading={addingEmployee}
+                  disabled={addingEmployee}
+                  className="flex-1"
+                >
+                  {addingEmployee ? 'Adding...' : 'Add Employee'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

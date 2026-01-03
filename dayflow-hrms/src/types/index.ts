@@ -96,6 +96,14 @@ export interface DataService<T> {
   delete(id: string): Promise<void>
 }
 
+// Specific service interfaces for better type safety
+export interface LeaveService extends DataService<LeaveRequest> {
+  create(item: Omit<LeaveRequest, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<LeaveRequest>
+  getByEmployeeId(employeeId: string): Promise<LeaveRequest[]>
+  approveRequest(id: string, adminComment?: string): Promise<LeaveRequest>
+  rejectRequest(id: string, adminComment?: string): Promise<LeaveRequest>
+}
+
 // Component prop types
 export interface DashboardCardProps {
   title: string

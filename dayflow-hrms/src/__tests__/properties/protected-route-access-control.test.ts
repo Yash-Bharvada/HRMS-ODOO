@@ -9,6 +9,7 @@ import * as fc from 'fast-check'
 import { render } from '@testing-library/react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AuthProvider } from '@/contexts/auth-context'
+import { ToastProvider } from '@/components/ui/toast'
 import { User } from '@/types'
 
 // Mock the auth service to control authentication state
@@ -44,6 +45,13 @@ const userArbitrary = fc.record({
   updatedAt: fc.date()
 })
 
+// Test wrapper component that provides all necessary contexts
+const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+  return React.createElement(ToastProvider, null,
+    React.createElement(AuthProvider, null, children)
+  )
+}
+
 // Test component that represents sensitive content
 const SensitiveContent = ({ contentType }: { contentType: string }) => {
   return React.createElement('div', { 'data-testid': 'sensitive-content' }, 
@@ -64,7 +72,7 @@ describe('Protected Route Access Control Properties', () => {
         authService.getCurrentUser.mockReturnValue(null)
 
         const { container } = render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, null,
               React.createElement(SensitiveContent, { contentType })
             )
@@ -90,7 +98,7 @@ describe('Protected Route Access Control Properties', () => {
         authService.getCurrentUser.mockReturnValue(user)
 
         const { container } = render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, null,
               React.createElement(SensitiveContent, { contentType })
             )
@@ -119,7 +127,7 @@ describe('Protected Route Access Control Properties', () => {
         authService.getCurrentUser.mockReturnValue(user)
 
         const { container } = render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, { requiredRole },
               React.createElement(SensitiveContent, { contentType })
             )
@@ -150,7 +158,7 @@ describe('Protected Route Access Control Properties', () => {
         authService.getCurrentUser.mockReturnValue(user)
 
         const { container } = render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, { requiredRole },
               React.createElement(SensitiveContent, { contentType: 'critical' })
             )
@@ -194,7 +202,7 @@ describe('Protected Route Access Control Properties', () => {
           React.createElement('div', { 'data-testid': 'fallback-content' }, fallbackMessage)
 
         const { container } = render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, { 
               fallback: React.createElement(FallbackComponent) 
             },
@@ -224,7 +232,7 @@ describe('Protected Route Access Control Properties', () => {
         authService.getCurrentUser.mockReturnValue(employeeUser)
 
         const { container } = render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, { requiredRole: 'admin' },
               React.createElement('div', null,
                 React.createElement(SensitiveContent, { contentType: 'admin-only' }),

@@ -2,6 +2,7 @@
 
 import { AuthService, LoginCredentials, SignupData, User } from '@/types'
 import { mockUsers } from './mock-data'
+import { withRetry, AuthenticationError, ValidationError, logError } from '@/utils/error-handler'
 
 const AUTH_STORAGE_KEY = 'dayflow_auth_user'
 
@@ -14,26 +15,39 @@ export class MockAuthService implements AuthService {
   }
 
   async login(credentials: LoginCredentials): Promise<User> {
-    // Simulate network delay
-    await this.delay(400 + Math.random() * 200)
+    return withRetry(async () => {
+      // Simulate network delay
+      await this.delay(400 + Math.random() * 200)
 
-    // Find user by email
-    const user = mockUsers.find(u => u.email === credentials.email)
-    
-    if (!user) {
-      throw new Error('Invalid email or password')
-    }
+      // Validate input
+      if (!credentials.email || !credentials.password) {
+        const error = new ValidationError('Email and password are required')
+        logError(error, { action: 'login', email: credentials.email })
+        throw error
+      }
 
-    // For demo purposes, accept any password for existing users
-    // In a real app, you would verify the password hash
-    if (!credentials.password || credentials.password.length < 6) {
-      throw new Error('Invalid email or password')
-    }
+      // Find user by email
+      const user = mockUsers.find(u => u.email === credentials.email)
+      
+      if (!user) {
+        const error = new AuthenticationError('Invalid email or password')
+        logError(error, { action: 'login', email: credentials.email })
+        throw error
+      }
 
-    this.currentUser = user
-    this.saveUserToStorage(user)
-    
-    return user
+      // For demo purposes, accept any password for existing users
+      // In a real app, you would verify the password hash
+      if (credentials.password.length < 6) {
+        const error = new AuthenticationError('Invalid email or password')
+        logError(error, { action: 'login', email: credentials.email })
+        throw error
+      }
+
+      this.currentUser = user
+      this.saveUserToStorage(user)
+      
+      return user
+    }, { maxAttempts: 2 })
   }
 
   async logout(): Promise<void> {
@@ -49,36 +63,47 @@ export class MockAuthService implements AuthService {
   }
 
   async signup(data: SignupData): Promise<User> {
-    // Simulate network delay
-    await this.delay(500 + Math.random() * 300)
+    return withRetry(async () => {
+      // Simulate network delay
+      await this.delay(500 + Math.random() * 300)
 
-    // Check if user already exists
-    const existingUser = mockUsers.find(u => 
-      u.email === data.email || u.employeeId === data.employeeId
-    )
-    
-    if (existingUser) {
-      throw new Error('User with this email or employee ID already exists')
-    }
+      // Validate input
+      if (!data.email || !data.password || !data.fullName || !data.employeeId) {
+        const error = new ValidationError('All fields are required')
+        logError(error, { action: 'signup', email: data.email })
+        throw error
+      }
 
-    // Create new user
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      employeeId: data.employeeId,
-      fullName: data.fullName,
-      email: data.email,
-      role: data.role,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
+      // Check if user already exists
+      const existingUser = mockUsers.find(u => 
+        u.email === data.email || u.employeeId === data.employeeId
+      )
+      
+      if (existingUser) {
+        const error = new ValidationError('User with this email or employee ID already exists')
+        logError(error, { action: 'signup', email: data.email, employeeId: data.employeeId })
+        throw error
+      }
 
-    // Add to mock users (in a real app, this would be saved to database)
-    mockUsers.push(newUser)
-    
-    this.currentUser = newUser
-    this.saveUserToStorage(newUser)
-    
-    return newUser
+      // Create new user
+      const newUser: User = {
+        id: Math.random().toString(36).substr(2, 9),
+        employeeId: data.employeeId,
+        fullName: data.fullName,
+        email: data.email,
+        role: data.role,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      // Add to mock users (in a real app, this would be saved to database)
+      mockUsers.push(newUser)
+      
+      this.currentUser = newUser
+      this.saveUserToStorage(newUser)
+      
+      return newUser
+    }, { maxAttempts: 2 })
   }
 
   private async delay(ms: number): Promise<void> {

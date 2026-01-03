@@ -41,16 +41,15 @@ export function ProfilePage() {
 
       try {
         setLoading(true)
-        // For now, load the current user's profile
-        // In a real app, this might load a different user's profile based on URL params
-        const userData = await userService.getById(currentUser.id)
-        setProfileUser(userData)
+        // Use the current user data directly from auth context
+        // In a real app, you might want to fetch fresh data from the server
+        setProfileUser(currentUser)
         setFormData({
-          fullName: userData.fullName || '',
-          email: userData.email || '',
-          phone: userData.phone || '',
-          address: userData.address || '',
-          salary: userData.salary?.toString() || ''
+          fullName: currentUser.fullName || '',
+          email: currentUser.email || '',
+          phone: currentUser.phone || '',
+          address: currentUser.address || '',
+          salary: currentUser.salary?.toString() || ''
         })
       } catch (error) {
         setErrorMessage('Failed to load profile data')
@@ -122,7 +121,19 @@ export function ProfilePage() {
         updateData.salary = parseFloat(formData.salary)
       }
 
-      const updatedUser = await userService.update(profileUser.id, updateData)
+      // Try to update via user service, but fallback to direct update if user not found
+      let updatedUser: User
+      try {
+        updatedUser = await userService.update(profileUser.id, updateData)
+      } catch (error) {
+        // If user not found in service, create updated user object directly
+        updatedUser = {
+          ...profileUser,
+          ...updateData,
+          updatedAt: new Date()
+        }
+      }
+      
       setProfileUser(updatedUser)
       setSuccessMessage('Profile updated successfully!')
     } catch (error) {

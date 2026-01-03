@@ -9,6 +9,7 @@ import * as fc from 'fast-check'
 import { render, screen, cleanup } from '@testing-library/react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AuthProvider } from '@/contexts/auth-context'
+import { ToastProvider } from '@/components/ui/toast'
 import { User } from '@/types'
 
 // Mock the auth service to control authentication state
@@ -46,6 +47,13 @@ const userArbitrary = fc.record({
 
 const roleArbitrary = fc.constantFrom('employee' as const, 'admin' as const)
 
+// Test wrapper component that provides all necessary contexts
+const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+  return React.createElement(ToastProvider, null,
+    React.createElement(AuthProvider, null, children)
+  )
+}
+
 // Test component that we'll protect
 const TestComponent = ({ role }: { role?: string }) => {
   return React.createElement('div', { 'data-testid': 'protected-content' }, 
@@ -72,7 +80,7 @@ describe('Role-Based Authentication Routing Properties', () => {
         authService.getCurrentUser.mockReturnValue(userWithRole)
 
         render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, { requiredRole },
               React.createElement(TestComponent, { role: requiredRole })
             )
@@ -106,7 +114,7 @@ describe('Role-Based Authentication Routing Properties', () => {
         authService.getCurrentUser.mockReturnValue(userWithRole)
 
         render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, { requiredRole },
               React.createElement(TestComponent, { role: requiredRole })
             )
@@ -132,7 +140,7 @@ describe('Role-Based Authentication Routing Properties', () => {
         authService.getCurrentUser.mockReturnValue(user)
 
         render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, null,
               React.createElement(TestComponent)
             )
@@ -160,7 +168,7 @@ describe('Role-Based Authentication Routing Properties', () => {
         authService.getCurrentUser.mockReturnValue(null)
 
         render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, { requiredRole },
               React.createElement(TestComponent, { role: requiredRole || 'any' })
             )
@@ -187,7 +195,7 @@ describe('Role-Based Authentication Routing Properties', () => {
         authService.getCurrentUser.mockReturnValue(user)
 
         render(
-          React.createElement(AuthProvider, null,
+          React.createElement(TestWrapper, null,
             React.createElement(ProtectedRoute, { requiredRole },
               React.createElement(TestComponent, { role: requiredRole || 'any' })
             )

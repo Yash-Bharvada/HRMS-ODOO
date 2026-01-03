@@ -10,21 +10,22 @@ interface AppLayoutProps {
   children: React.ReactNode
   title?: string
   requiredRole?: 'employee' | 'admin'
-  currentPath?: string
-  onNavigate?: (href: string) => void
 }
 
 export function AppLayout({ 
   children, 
   title,
-  requiredRole,
-  currentPath,
-  onNavigate
+  requiredRole
 }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const handleMenuClick = () => {
     setSidebarOpen(!sidebarOpen)
+  }
+
+  const handleSidebarToggle = () => {
+    setSidebarCollapsed(!sidebarCollapsed)
   }
 
   return (
@@ -32,12 +33,13 @@ export function AppLayout({
       <div className="flex h-screen bg-background">
         {/* Sidebar */}
         <div className={clsx(
-          'fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
         )}>
           <Sidebar 
-            currentPath={currentPath}
-            onNavigate={onNavigate}
+            isCollapsed={sidebarCollapsed}
+            onToggle={handleSidebarToggle}
           />
         </div>
 

@@ -8,6 +8,14 @@ import { Input } from '@/components/ui/input'
 import { authService } from '@/services/auth.service'
 import { SignupData } from '@/types'
 
+interface SignupErrors {
+  employeeId?: string
+  fullName?: string
+  email?: string
+  password?: string
+  role?: string
+}
+
 export function SignupPage() {
   const [formData, setFormData] = useState<SignupData>({
     employeeId: '',
@@ -16,14 +24,14 @@ export function SignupPage() {
     password: '',
     role: 'employee'
   })
-  const [errors, setErrors] = useState<Partial<SignupData>>({})
+  const [errors, setErrors] = useState<SignupErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authError, setAuthError] = useState<string>('')
 
   const router = useRouter()
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<SignupData> = {}
+    const newErrors: SignupErrors = {}
 
     if (!formData.employeeId) {
       newErrors.employeeId = 'Employee ID is required'
