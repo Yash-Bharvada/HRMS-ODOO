@@ -1,8 +1,17 @@
-// Data service interface and implementation
-// Basic implementation for profile management - will be fully implemented in task 13
-
-import { DataService, User, AttendanceRecord, LeaveRequest, PayrollData, LeaveService } from '@/types'
-import { mockUsers, mockLeaveRequests, mockAttendance } from './mock-data'
+import {
+  DataService,
+  User,
+  AttendanceRecord,
+  LeaveRequest,
+  PayrollData,
+  LeaveService
+} from "@/types";
+import {
+  mockUsers,
+  mockAttendance,
+  mockLeaveRequests,
+  mockPayroll,
+} from "./mock-data";
 
 // Attendance service implementation for attendance management
 export class MockAttendanceService implements DataService<AttendanceRecord> {

@@ -5,7 +5,7 @@ import {
   Inject,
   ConflictException,
 } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Employee } from "@prisma/client";
 import { AttendanceStatus } from "@common/enums/attendance-status.enum";
 import { OverrideAttendanceDto } from "./dto/attendance.dto";
 
@@ -13,23 +13,28 @@ import { OverrideAttendanceDto } from "./dto/attendance.dto";
 export class AttendanceService {
   constructor(@Inject("PrismaClient") private prisma: PrismaClient) {}
 
+  private async findEmployeeOrThrow(userId: string): Promise<Employee> {
+    const employee = await this.prisma.employee.findUnique({
+      where: { userId },
+    });
+
+    if (!employee) {
+      throw new NotFoundException("Employee not found");
+    }
+
+    return employee;
+  }
+
   private getTodayDate(): Date {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return today;
   }
 
-  async checkIn(employeeId: string) {
+  async checkIn(userId: string) {
+    const employee = await this.findEmployeeOrThrow(userId);
+    const employeeId = employee.id;
     const today = this.getTodayDate();
-
-    // Check if employee exists
-    const employee = await this.prisma.employee.findUnique({
-      where: { id: employeeId },
-    });
-
-    if (!employee) {
-      throw new NotFoundException("Employee not found");
-    }
 
     // Check if already checked in today
     const existingRecord = await this.prisma.attendance.findUnique({
@@ -66,7 +71,8 @@ export class AttendanceService {
     });
   }
 
-  async checkOut(employeeId: string) {
+  async checkOut(userId: string) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
     const today = this.getTodayDate();
 
     const attendance = await this.prisma.attendance.findUnique({
@@ -102,7 +108,8 @@ export class AttendanceService {
     });
   }
 
-  async getTodayAttendance(employeeId: string) {
+  async getTodayAttendance(userId: string) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
     const today = this.getTodayDate();
 
     const attendance = await this.prisma.attendance.findUnique({
@@ -117,7 +124,8 @@ export class AttendanceService {
     return attendance || { message: "No attendance record for today" };
   }
 
-  async getAttendanceByDate(employeeId: string, date: string) {
+  async getAttendanceByDate(userId: string, date: string) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
     const parsedDate = new Date(date);
     parsedDate.setHours(0, 0, 0, 0);
 
@@ -138,10 +146,11 @@ export class AttendanceService {
   }
 
   async getEmployeeAttendanceHistory(
-    employeeId: string,
+    userId: string,
     startDate?: string,
     endDate?: string
   ) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
     const filter: any = { employeeId };
 
     if (startDate || endDate) {
@@ -221,7 +230,8 @@ export class AttendanceService {
     return attendance;
   }
 
-  async getAttendanceStats(employeeId: string, month: string) {
+  async getAttendanceStats(userId: string, month: string) {
+    const { id: employeeId } = await this.findEmployeeOrThrow(userId);
     const [year, monthNum] = month.split("-").map(Number);
 
     const startDate = new Date(year, monthNum - 1, 1);
