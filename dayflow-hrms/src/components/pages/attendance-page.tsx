@@ -12,12 +12,10 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DataTable } from '@/components/ui/data-table'
-import { DashboardCard } from '@/components/ui/dashboard-card'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/contexts/auth-context'
-import { AttendanceRecord, DataTableColumn, User } from '@/types'
+import { AttendanceRecord, User } from '@/types'
 import { attendanceService, userService } from '@/services/data.service'
 
 export function AttendancePage() {
@@ -33,16 +31,16 @@ export function AttendancePage() {
   const [filterDate, setFilterDate] = useState('')
 
   // Calculate attendance status based on check-in/out times
-  const calculateAttendanceStatus = (record: AttendanceRecord): 'present' | 'half-day' | 'absent' | 'leave' => {
-    if (record.status === 'leave') return 'leave'
-    if (!record.checkIn) return 'absent'
-    if (!record.checkOut) return 'half-day'
+  const calculateAttendanceStatus = (record: AttendanceRecord): 'PRESENT' | 'HALF_DAY' | 'ABSENT' | 'LEAVE' => {
+    if (record.status === 'LEAVE') return 'LEAVE'
+    if (!record.checkIn) return 'ABSENT'
+    if (!record.checkOut) return 'HALF_DAY'
     
     const checkInTime = new Date(record.checkIn).getTime()
     const checkOutTime = new Date(record.checkOut).getTime()
     const durationHours = (checkOutTime - checkInTime) / (1000 * 60 * 60)
     
-    return durationHours < 4 ? 'half-day' : 'present'
+    return durationHours < 4 ? 'HALF_DAY' : 'PRESENT'
   }
 
   useEffect(() => {
@@ -53,7 +51,7 @@ export function AttendancePage() {
         setIsLoading(true)
         setError(null)
 
-        if (user.role === 'admin') {
+        if (user.role === 'ADMIN') {
           const [records, employeeList] = await Promise.all([
             attendanceService.getAll(),
             userService.getAll()
@@ -92,7 +90,7 @@ export function AttendancePage() {
       setTodayRecord(newRecord)
       
       // Reload attendance data
-      const records = user.role === 'admin' 
+      const records = user.role === 'ADMIN' 
         ? await attendanceService.getAll()
         : await (attendanceService as any).getByEmployeeId(user.id)
       setAttendanceRecords(records)
@@ -113,7 +111,7 @@ export function AttendancePage() {
       setTodayRecord(updatedRecord)
       
       // Reload attendance data
-      const records = user.role === 'admin' 
+      const records = user.role === 'ADMIN' 
         ? await attendanceService.getAll()
         : await (attendanceService as any).getByEmployeeId(user.id)
       setAttendanceRecords(records)
@@ -165,7 +163,7 @@ export function AttendancePage() {
 
       const dataToExport = filteredRecords.map(record => ({
         Date: new Date(record.date).toLocaleDateString(),
-        ...(user?.role === 'admin' && { Employee: getEmployeeName(record.employeeId) }),
+        ...(user?.role === 'ADMIN' && { Employee: getEmployeeName(record.employeeId) }),
         'Check In': record.checkIn ? new Date(record.checkIn).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
           minute: '2-digit' 
@@ -215,56 +213,8 @@ export function AttendancePage() {
 
   const getEmployeeName = (employeeId: string) => {
     const employee = employees.find(emp => emp.id === employeeId)
-    return employee?.fullName || `Employee ${employeeId}`
+    return employee ? `${employee.firstName} ${employee.lastName}` : `Employee ${employeeId}`
   }
-
-  const columns: DataTableColumn<AttendanceRecord>[] = [
-    {
-      key: 'date',
-      label: 'Date',
-      sortable: true,
-      render: (value) => new Date(value).toLocaleDateString()
-    },
-    ...(user?.role === 'admin' ? [{
-      key: 'employeeId' as keyof AttendanceRecord,
-      label: 'Employee',
-      sortable: true,
-      render: (value: any) => getEmployeeName(value)
-    }] : []),
-    {
-      key: 'checkIn',
-      label: 'Check In',
-      render: (value) => value ? new Date(value).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }) : '-'
-    },
-    {
-      key: 'checkOut',
-      label: 'Check Out',
-      render: (value) => value ? new Date(value).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }) : '-'
-    },
-    {
-      key: 'duration',
-      label: 'Hours',
-      render: (value) => value ? `${value}h` : '-'
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (value) => (
-        <div className="flex items-center space-x-2">
-          {getStatusIcon(value)}
-          <span className={`capitalize ${getStatusColor(value)}`}>
-            {value}
-          </span>
-        </div>
-      )
-    }
-  ]
 
   // Filter records by date if filter is applied
   const filteredRecords = filterDate 
@@ -274,7 +224,7 @@ export function AttendancePage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <LoadingSpinner size="lg" text="Loading attendance data..." />
+        <LoadingSpinner />
       </div>
     )
   }
@@ -286,12 +236,12 @@ export function AttendancePage() {
         <div className="text-center">
           <h3 className="text-lg font-semibold text-foreground">Error Loading Attendance</h3>
           <p className="text-muted-foreground">{error}</p>
-          <Button 
+          <button 
             onClick={() => window.location.reload()}
-            className="mt-4"
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Retry
-          </Button>
+          </button>
         </div>
       </div>
     )
@@ -300,52 +250,67 @@ export function AttendancePage() {
   return (
     <div className="space-y-6">
       {/* Employee Check-in/out Section */}
-      {user?.role === 'employee' && (
+      {user?.role === 'EMPLOYEE' && (
         <div className="bg-card border border-border rounded-lg p-6">
           <h2 className="text-lg font-semibold text-card-foreground mb-4">Today's Attendance</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <DashboardCard
-              title="Status"
-              value={todayRecord ? todayRecord.status.charAt(0).toUpperCase() + todayRecord.status.slice(1) : 'Not checked in'}
-              icon={() => getStatusIcon(todayRecord?.status || 'absent')}
-            />
+            <div className="bg-white p-4 rounded-lg shadow border">
+              <div className="flex items-center">
+                {getStatusIcon(todayRecord?.status || 'ABSENT')}
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Status</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {todayRecord ? todayRecord.status.charAt(0).toUpperCase() + todayRecord.status.slice(1) : 'Not checked in'}
+                  </p>
+                </div>
+              </div>
+            </div>
             
-            <DashboardCard
-              title="Check In"
-              value={todayRecord?.checkIn ? new Date(todayRecord.checkIn).toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              }) : 'Not checked in'}
-              icon={Clock}
-            />
+            <div className="bg-white p-4 rounded-lg shadow border">
+              <div className="flex items-center">
+                <Clock className="h-6 w-6 text-blue-600" />
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Check In</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {todayRecord?.checkIn ? new Date(todayRecord.checkIn).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    }) : 'Not checked in'}
+                  </p>
+                </div>
+              </div>
+            </div>
             
-            <DashboardCard
-              title="Hours Today"
-              value={todayRecord?.duration ? `${todayRecord.duration}h` : '0h'}
-              icon={Clock3}
-            />
+            <div className="bg-white p-4 rounded-lg shadow border">
+              <div className="flex items-center">
+                <Clock3 className="h-6 w-6 text-green-600" />
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Hours Today</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {todayRecord?.duration ? `${todayRecord.duration}h` : '0h'}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex space-x-4">
-            <Button
+            <button
               onClick={handleCheckIn}
               disabled={isCheckingIn || !!todayRecord?.checkIn}
-              loading={isCheckingIn}
-              className="flex-1"
+              className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {todayRecord?.checkIn ? 'Already Checked In' : 'Check In'}
-            </Button>
+              {isCheckingIn ? 'Checking In...' : (todayRecord?.checkIn ? 'Already Checked In' : 'Check In')}
+            </button>
             
-            <Button
+            <button
               onClick={handleCheckOut}
               disabled={isCheckingOut || !todayRecord?.checkIn || !!todayRecord?.checkOut}
-              loading={isCheckingOut}
-              variant="outline"
-              className="flex-1"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {todayRecord?.checkOut ? 'Already Checked Out' : 'Check Out'}
-            </Button>
+              {isCheckingOut ? 'Checking Out...' : (todayRecord?.checkOut ? 'Already Checked Out' : 'Check Out')}
+            </button>
           </div>
         </div>
       )}
@@ -354,11 +319,11 @@ export function AttendancePage() {
       <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-card-foreground">
-            {user?.role === 'admin' ? 'All Employee Attendance' : 'Attendance History'}
+            {user?.role === 'ADMIN' ? 'All Employee Attendance' : 'Attendance History'}
           </h2>
           
           <div className="flex items-center space-x-2">
-            {user?.role === 'admin' && (
+            {user?.role === 'ADMIN' && (
               <div className="flex items-center space-x-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <Input
@@ -369,29 +334,71 @@ export function AttendancePage() {
                   placeholder="dd-mm-yyyy"
                 />
                 {filterDate && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
                     onClick={() => setFilterDate('')}
+                    className="px-2 py-1 text-sm text-gray-600 hover:text-gray-800"
                   >
                     Clear
-                  </Button>
+                  </button>
                 )}
               </div>
             )}
             
-            <Button variant="outline" size="sm" onClick={handleExport}>
+            <button onClick={handleExport} className="flex items-center px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50">
               <Download className="h-4 w-4 mr-2" />
               Export
-            </Button>
+            </button>
           </div>
         </div>
 
-        <DataTable
-          data={filteredRecords}
-          columns={columns}
-          loading={isLoading}
-        />
+        <div className="bg-white rounded-lg shadow border overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                {user?.role === 'ADMIN' && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                )}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredRecords.map((record) => (
+                <tr key={record.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(record.date).toLocaleDateString()}
+                  </td>
+                  {user?.role === 'ADMIN' && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {getEmployeeName(record.employeeId)}
+                    </td>
+                  )}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {record.checkIn ? new Date(record.checkIn).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    }) : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {record.checkOut ? new Date(record.checkOut).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    }) : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {record.duration ? `${record.duration}h` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span className="capitalize">{record.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

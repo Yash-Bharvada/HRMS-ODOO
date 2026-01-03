@@ -117,14 +117,13 @@ export function LoginPage() {
             disabled={isSubmitting}
           />
 
-          <Button
+          <button
             type="submit"
-            className="w-full"
-            loading={isSubmitting}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             disabled={isSubmitting}
           >
-            Sign In
-          </Button>
+            {isSubmitting ? 'Signing In...' : 'Sign In'}
+          </button>
         </form>
 
         <div className="text-center">

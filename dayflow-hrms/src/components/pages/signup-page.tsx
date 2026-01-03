@@ -3,38 +3,45 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { authService } from '@/services/auth.service'
 import { SignupData } from '@/types'
 
+interface SignupErrors {
+  firstName?: string
+  lastName?: string
+  email?: string
+  password?: string
+  role?: string
+}
+
 export function SignupPage() {
   const [formData, setFormData] = useState<SignupData>({
-    employeeId: '',
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
-    role: 'employee'
+    role: 'EMPLOYEE'
   })
-  const [errors, setErrors] = useState<Partial<SignupData>>({})
+  const [errors, setErrors] = useState<SignupErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authError, setAuthError] = useState<string>('')
 
   const router = useRouter();
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<SignupData> = {}
+    const newErrors: SignupErrors = {}
 
-    if (!formData.employeeId) {
-      newErrors.employeeId = "Employee ID is required";
-    } else if (formData.employeeId.length < 3) {
-      newErrors.employeeId = "Employee ID must be at least 3 characters";
+    if (!formData.firstName) {
+      newErrors.firstName = "First name is required";
+    } else if (formData.firstName.length < 2) {
+      newErrors.firstName = "First name must be at least 2 characters";
     }
 
-    if (!formData.fullName) {
-      newErrors.fullName = "Full name is required";
-    } else if (formData.fullName.length < 2) {
-      newErrors.fullName = "Full name must be at least 2 characters";
+    if (!formData.lastName) {
+      newErrors.lastName = "Last name is required";
+    } else if (formData.lastName.length < 2) {
+      newErrors.lastName = "Last name must be at least 2 characters";
     }
 
     if (!formData.email) {
@@ -71,7 +78,7 @@ export function SignupPage() {
       const user = await authService.signup(formData);
 
       // Redirect based on role
-      if (user.role === "admin") {
+      if (user.role === "ADMIN") {
         router.push("/dashboard/admin");
       } else {
         router.push("/dashboard/employee");
@@ -92,7 +99,7 @@ export function SignupPage() {
       }));
 
       // Clear field error when user starts typing
-      if (errors[field]) {
+      if (field in errors && errors[field as keyof SignupErrors]) {
         setErrors((prev) => ({
           ...prev,
           [field]: undefined,
@@ -121,22 +128,22 @@ export function SignupPage() {
           )}
 
           <Input
-            label="Employee ID"
+            label="First Name"
             type="text"
-            value={formData.employeeId}
-            onChange={handleInputChange("employeeId")}
-            error={errors.employeeId}
-            placeholder="Enter your employee ID"
+            value={formData.firstName}
+            onChange={handleInputChange("firstName")}
+            error={errors.firstName}
+            placeholder="Enter your first name"
             disabled={isSubmitting}
           />
 
           <Input
-            label="Full Name"
+            label="Last Name"
             type="text"
-            value={formData.fullName}
-            onChange={handleInputChange("fullName")}
-            error={errors.fullName}
-            placeholder="Enter your full name"
+            value={formData.lastName}
+            onChange={handleInputChange("lastName")}
+            error={errors.lastName}
+            placeholder="Enter your last name"
             disabled={isSubmitting}
           />
 
@@ -182,14 +189,13 @@ export function SignupPage() {
             )}
           </div>
 
-          <Button
+          <button
             type="submit"
-            className="w-full"
-            loading={isSubmitting}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             disabled={isSubmitting}
           >
-            Create Account
-          </Button>
+            {isSubmitting ? 'Creating Account...' : 'Create Account'}
+          </button>
         </form>
 
         <div className="text-center">

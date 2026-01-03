@@ -1,75 +1,53 @@
 'use client'
 
-import React, { Component, ErrorInfo, ReactNode } from 'react'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
+import React from 'react'
 import { Button } from './button'
 
-interface Props {
-  children: ReactNode
-  fallback?: ReactNode
-}
-
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean
   error?: Error
-  errorInfo?: ErrorInfo
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+interface ErrorBoundaryProps {
+  children: React.ReactNode
+  fallback?: React.ComponentType<{ error: Error; resetError: () => void }>
+}
+
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false }
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo)
-    this.setState({ error, errorInfo })
   }
 
-  handleRetry = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined })
+  resetError = () => {
+    this.setState({ hasError: false, error: undefined })
   }
 
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
-        return this.props.fallback
+        const FallbackComponent = this.props.fallback
+        return <FallbackComponent error={this.state.error!} resetError={this.resetError} />
       }
 
       return (
-        <div className="min-h-[400px] flex items-center justify-center p-8">
-          <div className="text-center space-y-4 max-w-md">
-            <AlertTriangle className="h-16 w-16 text-destructive mx-auto" />
-            <div>
-              <h2 className="text-xl font-semibold text-foreground mb-2">
-                Something went wrong
-              </h2>
-              <p className="text-muted-foreground mb-4">
-                An unexpected error occurred. Please try refreshing the page or contact support if the problem persists.
-              </p>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
-                <details className="text-left bg-muted p-4 rounded-lg mb-4">
-                  <summary className="cursor-pointer font-medium">Error Details</summary>
-                  <pre className="mt-2 text-sm overflow-auto">
-                    {this.state.error.toString()}
-                    {this.state.errorInfo?.componentStack}
-                  </pre>
-                </details>
-              )}
-            </div>
-            <div className="flex space-x-2 justify-center">
-              <Button onClick={this.handleRetry} variant="outline">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
-              </Button>
-              <Button onClick={() => window.location.reload()}>
-                Refresh Page
-              </Button>
-            </div>
+        <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+            <h2 className="text-lg font-semibold text-red-800 mb-2">Something went wrong</h2>
+            <p className="text-red-600 mb-4">
+              {this.state.error?.message || 'An unexpected error occurred'}
+            </p>
+            <Button onClick={this.resetError} variant="outline">
+              Try again
+            </Button>
           </div>
         </div>
       )
@@ -79,10 +57,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-// Hook version for functional components
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
-  fallback?: ReactNode
+  fallback?: React.ComponentType<{ error: Error; resetError: () => void }>
 ) {
   return function WrappedComponent(props: P) {
     return (

@@ -10,6 +10,7 @@ import {
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { CreateUserDto } from "../users/dto/user.dto";
 import { AllExceptionsFilter } from "@common/filters/all-exceptions.filter";
 import { JwtGuard } from "@common/guards/jwt.guard";
 import { User, RequestUser } from "@common/decorators/user.decorator";
@@ -25,6 +26,15 @@ export class AuthController {
       return await this.authService.login(loginDto.email, loginDto.password);
     } catch (error) {
       throw new UnauthorizedException("Invalid email or password");
+    }
+  }
+
+  @Post("signup")
+  async signup(@Body() createUserDto: CreateUserDto) {
+    try {
+      return await this.authService.signup(createUserDto);
+    } catch (error) {
+      throw new BadRequestException("Failed to create account");
     }
   }
 

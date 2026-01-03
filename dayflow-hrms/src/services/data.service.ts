@@ -6,338 +6,197 @@ import {
   PayrollData,
   LeaveService
 } from "@/types";
-import {
-  mockUsers,
-  mockAttendance,
-  mockLeaveRequests,
-  mockPayroll,
-} from "./mock-data";
+import { apiService } from "./api.service";
 
-// Attendance service implementation for attendance management
-export class MockAttendanceService implements DataService<AttendanceRecord> {
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
-  }
-
+// Attendance service implementation using backend API
+export class BackendAttendanceService implements DataService<AttendanceRecord> {
   async getAll(): Promise<AttendanceRecord[]> {
-    await this.delay(400 + Math.random() * 200)
-    return [...mockAttendance]
+    // Admin endpoint to get all attendance records
+    return apiService.get<AttendanceRecord[]>('/attendance');
   }
 
   async getById(id: string): Promise<AttendanceRecord> {
-    await this.delay(400 + Math.random() * 200)
-    const record = mockAttendance.find(r => r.id === id)
-    if (!record) {
-      throw new Error('Attendance record not found')
-    }
-    return { ...record }
+    return apiService.get<AttendanceRecord>(`/attendance/${id}`);
   }
 
   async create(item: Omit<AttendanceRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<AttendanceRecord> {
-    await this.delay(500 + Math.random() * 300)
-    const newRecord: AttendanceRecord = {
-      ...item,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    mockAttendance.push(newRecord)
-    return { ...newRecord }
+    // This would typically be handled by check-in/check-out endpoints
+    throw new Error('Use checkIn/checkOut methods instead');
   }
 
   async update(id: string, item: Partial<AttendanceRecord>): Promise<AttendanceRecord> {
-    await this.delay(400 + Math.random() * 200)
-    const recordIndex = mockAttendance.findIndex(r => r.id === id)
-    if (recordIndex === -1) {
-      throw new Error('Attendance record not found')
-    }
-    
-    const updatedRecord = {
-      ...mockAttendance[recordIndex],
-      ...item,
-      updatedAt: new Date()
-    }
-    
-    mockAttendance[recordIndex] = updatedRecord
-    return { ...updatedRecord }
+    // Admin override functionality
+    return apiService.post<AttendanceRecord>('/attendance/override', {
+      attendanceId: id,
+      ...item
+    });
   }
 
   async delete(id: string): Promise<void> {
-    await this.delay(300 + Math.random() * 200)
-    const recordIndex = mockAttendance.findIndex(r => r.id === id)
-    if (recordIndex === -1) {
-      throw new Error('Attendance record not found')
-    }
-    mockAttendance.splice(recordIndex, 1)
+    throw new Error('Attendance records cannot be deleted');
   }
 
   // Additional methods for attendance management
   async getByEmployeeId(employeeId: string): Promise<AttendanceRecord[]> {
-    await this.delay(400 + Math.random() * 200)
-    return mockAttendance.filter(r => r.employeeId === employeeId)
+    return apiService.get<AttendanceRecord[]>(`/attendance/history?employeeId=${employeeId}`);
   }
 
   async getByDateRange(startDate: string, endDate?: string): Promise<AttendanceRecord[]> {
-    await this.delay(400 + Math.random() * 200)
-    return mockAttendance.filter(record => {
-      const recordDate = record.date
-      if (endDate) {
-        return recordDate >= startDate && recordDate <= endDate
-      }
-      return recordDate === startDate
-    })
+    const params = new URLSearchParams({ startDate });
+    if (endDate) params.append('endDate', endDate);
+    return apiService.get<AttendanceRecord[]>(`/attendance/history?${params}`);
   }
 
-  async checkIn(employeeId: string, timestamp: Date = new Date()): Promise<AttendanceRecord> {
-    const today = timestamp.toISOString().split('T')[0]
-    const existingRecord = mockAttendance.find(r => 
-      r.employeeId === employeeId && r.date === today
-    )
+  async checkIn(employeeId?: string): Promise<AttendanceRecord> {
+    return apiService.post<AttendanceRecord>('/attendance/check-in');
+  }
 
-    if (existingRecord && existingRecord.checkIn) {
-      throw new Error('Already checked in today')
-    }
+  async checkOut(employeeId?: string): Promise<AttendanceRecord> {
+    return apiService.post<AttendanceRecord>('/attendance/check-out');
+  }
 
-    if (existingRecord) {
-      // Update existing record with check-in
-      return this.update(existingRecord.id, {
-        checkIn: timestamp,
-        status: 'half-day' // Will be updated to 'present' on check-out
-      })
-    } else {
-      // Create new record
-      return this.create({
-        employeeId,
-        date: today,
-        checkIn: timestamp,
-        status: 'half-day'
-      })
+  async getTodayAttendance(): Promise<AttendanceRecord | null> {
+    try {
+      return await apiService.get<AttendanceRecord>('/attendance/today');
+    } catch (error) {
+      // Return null if no attendance record for today
+      return null;
     }
   }
 
-  async checkOut(employeeId: string, timestamp: Date = new Date()): Promise<AttendanceRecord> {
-    const today = timestamp.toISOString().split('T')[0]
-    const existingRecord = mockAttendance.find(r => 
-      r.employeeId === employeeId && r.date === today
-    )
+  async getAttendanceHistory(startDate?: string, endDate?: string): Promise<AttendanceRecord[]> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return apiService.get<AttendanceRecord[]>(`/attendance/history?${params}`);
+  }
 
-    if (!existingRecord || !existingRecord.checkIn) {
-      throw new Error('Must check in before checking out')
-    }
-
-    if (existingRecord.checkOut) {
-      throw new Error('Already checked out today')
-    }
-
-    // Calculate duration
-    const checkInTime = new Date(existingRecord.checkIn).getTime()
-    const checkOutTime = timestamp.getTime()
-    const durationHours = (checkOutTime - checkInTime) / (1000 * 60 * 60)
-
-    return this.update(existingRecord.id, {
-      checkOut: timestamp,
-      duration: Math.round(durationHours * 100) / 100,
-      status: 'present'
-    })
+  async getAttendanceStats(month: string): Promise<any> {
+    return apiService.get(`/attendance/stats/${month}`);
   }
 }
 
-// Payroll service implementation for payroll management
-export class MockPayrollService implements DataService<PayrollData> {
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
-  }
-
+// Payroll service implementation using backend API
+export class BackendPayrollService implements DataService<PayrollData> {
   async getAll(): Promise<PayrollData[]> {
-    await this.delay(400 + Math.random() * 200)
-    // Generate mock payroll data based on current users
-    const currentMonth = new Date().getMonth()
-    const currentYear = new Date().getFullYear()
-    
-    return mockUsers.map(user => ({
-      id: `payroll_${user.id}_${currentYear}_${currentMonth}`,
-      employeeId: user.id,
-      salary: user.salary || 0,
-      month: String(currentMonth + 1).padStart(2, '0'),
-      year: currentYear,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }))
+    // Admin endpoint to get all payroll data
+    return apiService.get<PayrollData[]>('/payroll');
   }
 
   async getById(id: string): Promise<PayrollData> {
-    await this.delay(400 + Math.random() * 200)
-    const allPayroll = await this.getAll()
-    const payroll = allPayroll.find(p => p.id === id)
-    if (!payroll) {
-      throw new Error('Payroll record not found')
-    }
-    return payroll
+    return apiService.get<PayrollData>(`/payroll/${id}`);
   }
 
   async create(item: Omit<PayrollData, 'id' | 'createdAt' | 'updatedAt'>): Promise<PayrollData> {
-    await this.delay(500 + Math.random() * 300)
-    const newPayroll: PayrollData = {
-      ...item,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    return newPayroll
+    return apiService.post<PayrollData>(`/payroll/${item.employeeId}`, item);
   }
 
   async update(id: string, item: Partial<PayrollData>): Promise<PayrollData> {
-    await this.delay(400 + Math.random() * 200)
-    const existing = await this.getById(id)
-    const updated = {
-      ...existing,
-      ...item,
-      updatedAt: new Date()
-    }
-    return updated
+    return apiService.put<PayrollData>(`/payroll/${id}`, item);
   }
 
   async delete(id: string): Promise<void> {
-    await this.delay(300 + Math.random() * 200)
-    // In a real implementation, this would delete from storage
+    throw new Error('Payroll records cannot be deleted');
+  }
+
+  async getMyPayroll(): Promise<PayrollData[]> {
+    return apiService.get<PayrollData[]>('/payroll/me');
+  }
+
+  async getMyPayrollByMonth(month: string): Promise<PayrollData> {
+    return apiService.get<PayrollData>(`/payroll/me/${month}`);
+  }
+
+  async getEmployeePayroll(employeeId: string): Promise<PayrollData[]> {
+    return apiService.get<PayrollData[]>(`/payroll/employee/${employeeId}`);
+  }
+
+  async getAllEmployeesPayroll(month?: string): Promise<PayrollData[]> {
+    const params = month ? `?month=${month}` : '';
+    return apiService.get<PayrollData[]>(`/payroll${params}`);
   }
 }
 
-// Basic user service implementation for profile management
-export class MockUserService implements DataService<User> {
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
-  }
-
+// User service implementation using backend API
+export class BackendUserService implements DataService<User> {
   async getAll(): Promise<User[]> {
-    await this.delay(400 + Math.random() * 200)
-    return [...mockUsers]
+    return apiService.get<User[]>('/users');
   }
 
   async getById(id: string): Promise<User> {
-    await this.delay(400 + Math.random() * 200)
-    const user = mockUsers.find(u => u.id === id)
-    if (!user) {
-      throw new Error('User not found')
-    }
-    return { ...user }
+    return apiService.get<User>(`/users/${id}`);
   }
 
   async create(item: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
-    await this.delay(500 + Math.random() * 300)
-    const newUser: User = {
-      ...item,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    mockUsers.push(newUser)
-    return { ...newUser }
+    return apiService.post<User>('/users', item);
   }
 
   async update(id: string, item: Partial<User>): Promise<User> {
-    await this.delay(400 + Math.random() * 200)
-    const userIndex = mockUsers.findIndex(u => u.id === id)
-    if (userIndex === -1) {
-      throw new Error('User not found')
-    }
-    
-    const updatedUser = {
-      ...mockUsers[userIndex],
-      ...item,
-      updatedAt: new Date()
-    }
-    
-    mockUsers[userIndex] = updatedUser
-    return { ...updatedUser }
+    return apiService.put<User>(`/users/${id}`, item);
   }
 
   async delete(id: string): Promise<void> {
-    await this.delay(300 + Math.random() * 200)
-    const userIndex = mockUsers.findIndex(u => u.id === id)
-    if (userIndex === -1) {
-      throw new Error('User not found')
-    }
-    mockUsers.splice(userIndex, 1)
+    return apiService.delete(`/users/${id}`);
   }
 }
 
-// Leave service implementation for leave management
-export class MockLeaveService implements LeaveService {
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
-  }
-
+// Leave service implementation using backend API
+export class BackendLeaveService implements LeaveService {
   async getAll(): Promise<LeaveRequest[]> {
-    await this.delay(400 + Math.random() * 200)
-    return [...mockLeaveRequests]
+    // Admin endpoint to get all leave requests
+    return apiService.get<LeaveRequest[]>('/leave/pending');
   }
 
   async getById(id: string): Promise<LeaveRequest> {
-    await this.delay(400 + Math.random() * 200)
-    const request = mockLeaveRequests.find(r => r.id === id)
-    if (!request) {
-      throw new Error('Leave request not found')
-    }
-    return { ...request }
+    return apiService.get<LeaveRequest>(`/leave/${id}`);
   }
 
   async create(item: Omit<LeaveRequest, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<LeaveRequest> {
-    await this.delay(500 + Math.random() * 300)
-    const newRequest: LeaveRequest = {
-      ...item,
-      id: Math.random().toString(36).substr(2, 9),
-      status: 'pending',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    mockLeaveRequests.push(newRequest)
-    return { ...newRequest }
+    return apiService.post<LeaveRequest>('/leave/apply', {
+      leaveType: item.leaveType,
+      startDate: item.startDate,
+      endDate: item.endDate,
+      reason: item.reason,
+    });
   }
 
   async update(id: string, item: Partial<LeaveRequest>): Promise<LeaveRequest> {
-    await this.delay(400 + Math.random() * 200)
-    const requestIndex = mockLeaveRequests.findIndex(r => r.id === id)
-    if (requestIndex === -1) {
-      throw new Error('Leave request not found')
-    }
-    
-    const updatedRequest = {
-      ...mockLeaveRequests[requestIndex],
-      ...item,
-      updatedAt: new Date()
-    }
-    
-    mockLeaveRequests[requestIndex] = updatedRequest
-    return { ...updatedRequest }
+    // This would typically be handled by approve/reject endpoints
+    throw new Error('Use approveRequest/rejectRequest methods instead');
   }
 
   async delete(id: string): Promise<void> {
-    await this.delay(300 + Math.random() * 200)
-    const requestIndex = mockLeaveRequests.findIndex(r => r.id === id)
-    if (requestIndex === -1) {
-      throw new Error('Leave request not found')
-    }
-    mockLeaveRequests.splice(requestIndex, 1)
+    throw new Error('Leave requests cannot be deleted');
   }
 
   // Additional methods for leave management
   async getByEmployeeId(employeeId: string): Promise<LeaveRequest[]> {
-    await this.delay(400 + Math.random() * 200)
-    return mockLeaveRequests.filter(r => r.employeeId === employeeId)
+    return apiService.get<LeaveRequest[]>('/leave/my-requests');
+  }
+
+  async getMyLeaveRequests(): Promise<LeaveRequest[]> {
+    return apiService.get<LeaveRequest[]>('/leave/my-requests');
+  }
+
+  async getPendingLeaveRequests(): Promise<LeaveRequest[]> {
+    return apiService.get<LeaveRequest[]>('/leave/pending');
   }
 
   async approveRequest(id: string, adminComment?: string): Promise<LeaveRequest> {
-    return this.update(id, { status: 'approved', adminComment })
+    return apiService.put<LeaveRequest>(`/leave/${id}/approve`, {
+      comments: adminComment,
+    });
   }
 
   async rejectRequest(id: string, adminComment?: string): Promise<LeaveRequest> {
-    return this.update(id, { status: 'rejected', adminComment })
+    return apiService.put<LeaveRequest>(`/leave/${id}/reject`, {
+      reason: adminComment,
+    });
   }
 }
 
-// Service instances
-export const userService = new MockUserService()
-export const attendanceService = new MockAttendanceService()
-export const leaveService = new MockLeaveService()
-export const payrollService = new MockPayrollService()
+// Service instances - using backend services
+export const userService = new BackendUserService()
+export const attendanceService = new BackendAttendanceService()
+export const leaveService = new BackendLeaveService()
+export const payrollService = new BackendPayrollService()

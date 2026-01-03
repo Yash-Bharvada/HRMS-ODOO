@@ -3,6 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { authConfig } from "@config/auth.config";
+import { CreateUserDto } from "../users/dto/user.dto";
 
 @Injectable()
 export class AuthService {
@@ -25,6 +26,44 @@ export class AuthService {
       throw new Error("Invalid password");
     }
 
+    return this.generateTokens(user.id, user.role);
+  }
+
+  async signup(createUserDto: CreateUserDto) {
+    // Check if user already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: createUserDto.email },
+    });
+
+    if (existingUser) {
+      throw new Error("Email already in use");
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+
+    // Create user with employee profile
+    const user = await this.prisma.user.create({
+      data: {
+        email: createUserDto.email,
+        password: hashedPassword,
+        role: createUserDto.role || 'EMPLOYEE',
+        employee: {
+          create: {
+            firstName: createUserDto.firstName,
+            lastName: createUserDto.lastName,
+            department: createUserDto.department || 'General',
+            phone: createUserDto.phone,
+            address: createUserDto.address,
+          },
+        },
+      },
+      include: {
+        employee: true,
+      },
+    });
+
+    // Generate tokens for immediate login
     return this.generateTokens(user.id, user.role);
   }
 

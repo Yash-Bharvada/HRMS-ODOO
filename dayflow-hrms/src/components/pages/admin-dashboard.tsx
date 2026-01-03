@@ -2,20 +2,18 @@
 
 import React, { useState, useEffect } from 'react'
 import { Users, Clock, FileText, CheckCircle, XCircle, Plus, X } from 'lucide-react'
-import { DashboardCard } from '../ui/dashboard-card'
-import { DataTable } from '../ui/data-table'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { LoadingSpinner } from '../ui/loading-spinner'
 import { useToast } from '../ui/toast'
-import { User, LeaveRequest, AttendanceRecord, DataTableColumn } from '../../types'
+import { User, LeaveRequest, AttendanceRecord } from '../../types'
 import { userService, leaveService, attendanceService } from '../../services/data.service'
 
 interface AddEmployeeForm {
-  fullName: string
+  firstName: string
+  lastName: string
   email: string
-  employeeId: string
-  role: 'employee' | 'admin'
+  role: 'EMPLOYEE' | 'ADMIN'
   phone: string
   address: string
   salary: string
@@ -36,10 +34,10 @@ export function AdminDashboard() {
 
   // Add employee form state
   const [addEmployeeForm, setAddEmployeeForm] = useState<AddEmployeeForm>({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
-    employeeId: '',
-    role: 'employee',
+    role: 'EMPLOYEE',
     phone: '',
     address: '',
     salary: ''
@@ -90,8 +88,12 @@ export function AdminDashboard() {
   const validateAddEmployeeForm = (): boolean => {
     const errors: FormErrors = {}
 
-    if (!addEmployeeForm.fullName.trim()) {
-      errors.fullName = 'Full name is required'
+    if (!addEmployeeForm.firstName.trim()) {
+      errors.firstName = 'First name is required'
+    }
+
+    if (!addEmployeeForm.lastName.trim()) {
+      errors.lastName = 'Last name is required'
     }
 
     if (!addEmployeeForm.email.trim()) {
@@ -100,12 +102,6 @@ export function AdminDashboard() {
       errors.email = 'Please enter a valid email address'
     } else if (employees.some(emp => emp.email === addEmployeeForm.email)) {
       errors.email = 'Email already exists'
-    }
-
-    if (!addEmployeeForm.employeeId.trim()) {
-      errors.employeeId = 'Employee ID is required'
-    } else if (employees.some(emp => emp.employeeId === addEmployeeForm.employeeId)) {
-      errors.employeeId = 'Employee ID already exists'
     }
 
     if (addEmployeeForm.salary && (isNaN(Number(addEmployeeForm.salary)) || Number(addEmployeeForm.salary) < 0)) {
@@ -123,9 +119,9 @@ export function AdminDashboard() {
     setAddingEmployee(true)
     try {
       const newEmployee: Omit<User, 'id' | 'createdAt' | 'updatedAt'> = {
-        fullName: addEmployeeForm.fullName.trim(),
+        firstName: addEmployeeForm.firstName.trim(),
+        lastName: addEmployeeForm.lastName.trim(),
         email: addEmployeeForm.email.trim(),
-        employeeId: addEmployeeForm.employeeId.trim(),
         role: addEmployeeForm.role,
         phone: addEmployeeForm.phone.trim() || undefined,
         address: addEmployeeForm.address.trim() || undefined,
@@ -137,10 +133,10 @@ export function AdminDashboard() {
       
       // Reset form and close modal
       setAddEmployeeForm({
-        fullName: '',
+        firstName: '',
+        lastName: '',
         email: '',
-        employeeId: '',
-        role: 'employee',
+        role: 'EMPLOYEE',
         phone: '',
         address: '',
         salary: ''
@@ -148,7 +144,7 @@ export function AdminDashboard() {
       setFormErrors({})
       setShowAddEmployee(false)
       
-      success('Employee Added', `${createdEmployee.fullName} has been added successfully`)
+      success('Employee Added', `${createdEmployee.firstName} ${createdEmployee.lastName} has been added successfully`)
     } catch (err) {
       error('Failed to Add Employee', err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -170,156 +166,21 @@ export function AdminDashboard() {
   const todayAttendance = attendance.filter(record => 
     record.date === new Date().toISOString().split('T')[0]
   ).length
-  const pendingLeaveRequests = leaveRequests.filter(request => request.status === 'pending').length
-
-  // Define columns for leave requests table
-  const leaveRequestColumns: DataTableColumn<LeaveRequest & { employeeName: string }>[] = [
-    {
-      key: 'employeeName',
-      label: 'Employee',
-      sortable: true
-    },
-    {
-      key: 'type',
-      label: 'Type',
-      sortable: true,
-      render: (value) => (
-        <span className="capitalize px-2 py-1 rounded-full text-xs bg-secondary text-secondary-foreground">
-          {value}
-        </span>
-      )
-    },
-    {
-      key: 'fromDate',
-      label: 'From Date',
-      sortable: true,
-      render: (value) => new Date(value).toLocaleDateString()
-    },
-    {
-      key: 'toDate',
-      label: 'To Date',
-      sortable: true,
-      render: (value) => new Date(value).toLocaleDateString()
-    },
-    {
-      key: 'reason',
-      label: 'Reason',
-      sortable: false
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      render: (value) => {
-        const statusColors = {
-          pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        }
-        return (
-          <span className={`capitalize px-2 py-1 rounded-full text-xs ${statusColors[value as keyof typeof statusColors]}`}>
-            {value}
-          </span>
-        )
-      }
-    },
-    {
-      key: 'id',
-      label: 'Actions',
-      sortable: false,
-      render: (_, item) => (
-        item.status === 'pending' ? (
-          <div className="flex space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleLeaveAction(item.id, 'approved')}
-              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-            >
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Approve
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleLeaveAction(item.id, 'rejected')}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <XCircle className="h-4 w-4 mr-1" />
-              Reject
-            </Button>
-          </div>
-        ) : (
-          <span className="text-muted-foreground text-sm">
-            {item.adminComment || `Request ${item.status}`}
-          </span>
-        )
-      )
-    }
-  ]
-
-  // Define columns for employee list table
-  const employeeColumns: DataTableColumn<User>[] = [
-    {
-      key: 'employeeId',
-      label: 'Employee ID',
-      sortable: true
-    },
-    {
-      key: 'fullName',
-      label: 'Full Name',
-      sortable: true
-    },
-    {
-      key: 'email',
-      label: 'Email',
-      sortable: true
-    },
-    {
-      key: 'role',
-      label: 'Role',
-      sortable: true,
-      render: (value) => (
-        <span className="capitalize px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">
-          {value}
-        </span>
-      )
-    },
-    {
-      key: 'phone',
-      label: 'Phone',
-      sortable: false
-    },
-    {
-      key: 'salary',
-      label: 'Salary',
-      sortable: true,
-      render: (value) => (
-        value ? new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 0
-        }).format(value) : 'Not set'
-      )
-    },
-    {
-      key: 'createdAt',
-      label: 'Joined Date',
-      sortable: true,
-      render: (value) => new Date(value).toLocaleDateString()
-    }
-  ]
+  const pendingLeaveRequests = leaveRequests.filter(request => request.status === 'PENDING').length
 
   // Prepare leave requests data with employee names
-  const leaveRequestsWithNames = leaveRequests.map(request => ({
-    ...request,
-    employeeName: employees.find(emp => emp.id === request.employeeId)?.fullName || 'Unknown Employee'
-  }))
+  const leaveRequestsWithNames = leaveRequests.map(request => {
+    const employee = employees.find(emp => emp.id === request.employeeId);
+    return {
+      ...request,
+      employeeName: employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee'
+    };
+  })
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <LoadingSpinner text="Loading admin dashboard..." />
+        <LoadingSpinner />
       </div>
     )
   }
@@ -336,21 +197,33 @@ export function AdminDashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <DashboardCard
-          title="Total Employees"
-          value={totalEmployees}
-          icon={Users}
-        />
-        <DashboardCard
-          title="Today's Attendance"
-          value={todayAttendance}
-          icon={Clock}
-        />
-        <DashboardCard
-          title="Pending Leave Requests"
-          value={pendingLeaveRequests}
-          icon={FileText}
-        />
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center">
+            <Users className="h-8 w-8 text-blue-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Employees</p>
+              <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center">
+            <Clock className="h-8 w-8 text-green-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Today's Attendance</p>
+              <p className="text-2xl font-bold text-gray-900">{todayAttendance}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center">
+            <FileText className="h-8 w-8 text-orange-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Pending Leave Requests</p>
+              <p className="text-2xl font-bold text-gray-900">{pendingLeaveRequests}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Leave Requests Section */}
@@ -361,11 +234,65 @@ export function AdminDashboard() {
             Review and manage employee leave requests
           </p>
         </div>
-        <DataTable
-          data={leaveRequestsWithNames}
-          columns={leaveRequestColumns}
-          className="bg-card"
-        />
+        <div className="bg-white rounded-lg shadow border overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {leaveRequestsWithNames.map((request) => (
+                <tr key={request.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {request.employeeName}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.leaveType}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(request.startDate).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(request.endDate).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.status}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    {request.status === 'PENDING' ? (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleLeaveAction(request.id, 'approved')}
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 px-2 py-1 rounded border"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleLeaveAction(request.id, 'rejected')}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded border"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 text-sm">
+                        {request.comments || `Request ${request.status}`}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Employee List Section */}
@@ -377,16 +304,43 @@ export function AdminDashboard() {
               View and manage all employees
             </p>
           </div>
-          <Button onClick={() => setShowAddEmployee(true)} className="flex items-center space-x-2">
+          <button onClick={() => setShowAddEmployee(true)} className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
             <Plus className="h-4 w-4" />
             <span>Add Employee</span>
-          </Button>
+          </button>
         </div>
-        <DataTable
-          data={employees}
-          columns={employeeColumns}
-          className="bg-card"
-        />
+        <div className="bg-white rounded-lg shadow border overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {employees.map((employee) => (
+                <tr key={employee.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {employee.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {employee.firstName} {employee.lastName}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {employee.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span className="capitalize px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                      {employee.role}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Add Employee Modal */}
@@ -412,11 +366,19 @@ export function AdminDashboard() {
 
             <form onSubmit={(e) => { e.preventDefault(); handleAddEmployee(); }} className="space-y-4">
               <Input
-                label="Full Name *"
-                value={addEmployeeForm.fullName}
-                onChange={(e) => handleFormChange('fullName', e.target.value)}
-                error={formErrors.fullName}
-                placeholder="Enter full name"
+                label="First Name *"
+                value={addEmployeeForm.firstName}
+                onChange={(e) => handleFormChange('firstName', e.target.value)}
+                error={formErrors.firstName}
+                placeholder="Enter first name"
+              />
+
+              <Input
+                label="Last Name *"
+                value={addEmployeeForm.lastName}
+                onChange={(e) => handleFormChange('lastName', e.target.value)}
+                error={formErrors.lastName}
+                placeholder="Enter last name"
               />
 
               <Input
@@ -426,14 +388,6 @@ export function AdminDashboard() {
                 onChange={(e) => handleFormChange('email', e.target.value)}
                 error={formErrors.email}
                 placeholder="Enter email address"
-              />
-
-              <Input
-                label="Employee ID *"
-                value={addEmployeeForm.employeeId}
-                onChange={(e) => handleFormChange('employeeId', e.target.value)}
-                error={formErrors.employeeId}
-                placeholder="Enter employee ID (e.g., EMP006)"
               />
 
               <div className="space-y-2">
@@ -478,22 +432,20 @@ export function AdminDashboard() {
               />
 
               <div className="flex space-x-3 pt-4">
-                <Button
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setShowAddEmployee(false)}
-                  className="flex-1"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
-                  loading={addingEmployee}
                   disabled={addingEmployee}
-                  className="flex-1"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 >
                   {addingEmployee ? 'Adding...' : 'Add Employee'}
-                </Button>
+                </button>
               </div>
             </form>
           </div>

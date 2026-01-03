@@ -2,13 +2,13 @@
 
 export interface User {
   id: string
-  employeeId: string
-  fullName: string
   email: string
-  role: 'employee' | 'admin'
-  profilePicture?: string
+  firstName: string
+  lastName: string
+  role: 'ADMIN' | 'EMPLOYEE'
   phone?: string
   address?: string
+  profilePictureUrl?: string
   salary?: number
   createdAt: Date
   updatedAt: Date
@@ -20,7 +20,7 @@ export interface AttendanceRecord {
   date: string
   checkIn?: Date
   checkOut?: Date
-  status: 'present' | 'half-day' | 'absent' | 'leave'
+  status: 'PRESENT' | 'HALF_DAY' | 'ABSENT' | 'LEAVE'
   duration?: number
   createdAt: Date
   updatedAt: Date
@@ -29,12 +29,12 @@ export interface AttendanceRecord {
 export interface LeaveRequest {
   id: string
   employeeId: string
-  type: 'paid' | 'sick' | 'unpaid'
-  fromDate: Date
-  toDate: Date
-  reason: string
-  status: 'pending' | 'approved' | 'rejected'
-  adminComment?: string
+  leaveType: 'PAID' | 'SICK' | 'UNPAID'
+  startDate: string
+  endDate: string
+  reason?: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  comments?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -56,11 +56,14 @@ export interface LoginCredentials {
 }
 
 export interface SignupData {
-  employeeId: string
-  fullName: string
   email: string
   password: string
-  role: 'employee' | 'admin'
+  firstName: string
+  lastName: string
+  role: 'ADMIN' | 'EMPLOYEE'
+  phone?: string
+  address?: string
+  salary?: number
 }
 
 // Context types
@@ -68,8 +71,8 @@ export interface AuthContextType {
   user: User | null
   login: (credentials: LoginCredentials) => Promise<void>
   logout: () => Promise<void>
-  isLoading: boolean
-  isAuthenticated: boolean
+  signup: (data: SignupData) => Promise<void>
+  loading: boolean
 }
 
 export interface AppContextType {

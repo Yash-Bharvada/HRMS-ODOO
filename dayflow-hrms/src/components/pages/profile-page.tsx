@@ -10,7 +10,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { isValidEmail, isValidName, isValidPhone, isValidSalary, validateRequired } from '@/utils/validation'
 
 interface FormErrors {
-  fullName?: string
+  firstName?: string
+  lastName?: string
   email?: string
   phone?: string
   address?: string
@@ -28,7 +29,8 @@ export function ProfilePage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     address: '',
@@ -45,7 +47,8 @@ export function ProfilePage() {
         // In a real app, you might want to fetch fresh data from the server
         setProfileUser(currentUser)
         setFormData({
-          fullName: currentUser.fullName || '',
+          firstName: currentUser.firstName || '',
+          lastName: currentUser.lastName || '',
           email: currentUser.email || '',
           phone: currentUser.phone || '',
           address: currentUser.address || '',
@@ -74,10 +77,16 @@ export function ProfilePage() {
     const newErrors: FormErrors = {}
 
     // Validate required fields
-    const nameError = validateRequired(formData.fullName, 'Full name')
-    if (nameError) newErrors.fullName = nameError
-    else if (!isValidName(formData.fullName)) {
-      newErrors.fullName = 'Full name must be at least 2 characters'
+    const firstNameError = validateRequired(formData.firstName, 'First name')
+    if (firstNameError) newErrors.firstName = firstNameError
+    else if (!isValidName(formData.firstName)) {
+      newErrors.firstName = 'First name must be at least 2 characters'
+    }
+
+    const lastNameError = validateRequired(formData.lastName, 'Last name')
+    if (lastNameError) newErrors.lastName = lastNameError
+    else if (!isValidName(formData.lastName)) {
+      newErrors.lastName = 'Last name must be at least 2 characters'
     }
 
     const emailError = validateRequired(formData.email, 'Email')
@@ -110,14 +119,15 @@ export function ProfilePage() {
       setSuccessMessage('')
 
       const updateData: Partial<User> = {
-        fullName: formData.fullName,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone || undefined,
         address: formData.address || undefined
       }
 
       // Only admins can update salary
-      if (currentUser.role === 'admin' && formData.salary) {
+      if (currentUser.role === 'ADMIN' && formData.salary) {
         updateData.salary = parseFloat(formData.salary)
       }
 
@@ -148,11 +158,11 @@ export function ProfilePage() {
     
     // Users can edit their own basic fields
     if (currentUser.id === profileUser.id) {
-      return ['fullName', 'email', 'phone', 'address'].includes(field)
+      return ['firstName', 'lastName', 'email', 'phone', 'address'].includes(field)
     }
     
     // Admins can edit all fields for any user
-    if (currentUser.role === 'admin') {
+    if (currentUser.role === 'ADMIN') {
       return true
     }
     
@@ -160,7 +170,7 @@ export function ProfilePage() {
   }
 
   const canEditSalary = (): boolean => {
-    return currentUser?.role === 'admin'
+    return currentUser?.role === 'ADMIN'
   }
 
   if (loading) {
@@ -185,7 +195,7 @@ export function ProfilePage() {
         <div className="p-6 border-b border-border">
           <h1 className="text-2xl font-semibold text-card-foreground">Profile Management</h1>
           <p className="text-muted-foreground mt-1">
-            {currentUser?.id === profileUser.id ? 'Manage your profile information' : `Managing profile for ${profileUser.fullName}`}
+            {currentUser?.id === profileUser.id ? 'Manage your profile information' : `Managing profile for ${profileUser.firstName} ${profileUser.lastName}`}
           </p>
         </div>
 
@@ -195,21 +205,21 @@ export function ProfilePage() {
             <div className="lg:col-span-1">
               <div className="text-center">
                 <div className="w-32 h-32 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
-                  {profileUser.profilePicture ? (
+                  {profileUser.profilePictureUrl ? (
                     <img
-                      src={profileUser.profilePicture}
-                      alt={profileUser.fullName}
+                      src={profileUser.profilePictureUrl}
+                      alt={`${profileUser.firstName} ${profileUser.lastName}`}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
                     <div className="text-4xl font-semibold text-muted-foreground">
-                      {profileUser.fullName.charAt(0).toUpperCase()}
+                      {profileUser.firstName.charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
-                <h2 className="text-xl font-semibold text-card-foreground">{profileUser.fullName}</h2>
+                <h2 className="text-xl font-semibold text-card-foreground">{profileUser.firstName} {profileUser.lastName}</h2>
                 <p className="text-muted-foreground capitalize">{profileUser.role}</p>
-                <p className="text-sm text-muted-foreground mt-1">ID: {profileUser.employeeId}</p>
+                <p className="text-sm text-muted-foreground mt-1">ID: {profileUser.id}</p>
               </div>
             </div>
 
@@ -222,13 +232,22 @@ export function ProfilePage() {
                     <h3 className="text-lg font-medium text-card-foreground mb-4">Basic Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input
-                        data-testid="fullName-field"
-                        label="Full Name"
-                        value={formData.fullName}
-                        onChange={(e) => handleInputChange('fullName', e.target.value)}
-                        error={errors.fullName}
-                        readOnly={!canEditField('fullName')}
-                        disabled={!canEditField('fullName')}
+                        data-testid="firstName-field"
+                        label="First Name"
+                        value={formData.firstName}
+                        onChange={(e) => handleInputChange('firstName', e.target.value)}
+                        error={errors.firstName}
+                        readOnly={!canEditField('firstName')}
+                        disabled={!canEditField('firstName')}
+                      />
+                      <Input
+                        data-testid="lastName-field"
+                        label="Last Name"
+                        value={formData.lastName}
+                        onChange={(e) => handleInputChange('lastName', e.target.value)}
+                        error={errors.lastName}
+                        readOnly={!canEditField('lastName')}
+                        disabled={!canEditField('lastName')}
                       />
                       <Input
                         data-testid="email-field"
@@ -275,7 +294,7 @@ export function ProfilePage() {
                       <Input
                         data-testid="employee-id-field"
                         label="Employee ID"
-                        value={profileUser.employeeId}
+                        value={profileUser.id}
                         readOnly
                         disabled
                       />
@@ -318,14 +337,14 @@ export function ProfilePage() {
 
                   {/* Save Button */}
                   <div className="flex justify-end">
-                    <Button
+                    <button
                       data-testid="save-button"
                       type="submit"
-                      loading={saving}
-                      disabled={saving || (currentUser?.id !== profileUser.id && currentUser?.role !== 'admin')}
+                      disabled={saving || (currentUser?.id !== profileUser.id && currentUser?.role !== 'ADMIN')}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                     >
                       {saving ? 'Saving...' : 'Save Changes'}
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </form>

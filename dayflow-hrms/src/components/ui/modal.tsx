@@ -69,14 +69,12 @@ export function Modal({
             <h2 className="text-lg font-semibold text-card-foreground">
               {title}
             </h2>
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
               onClick={onClose}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
             >
               <X className="h-4 w-4" />
-            </Button>
+            </button>
           </div>
         )}
         

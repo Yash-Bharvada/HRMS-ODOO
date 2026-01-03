@@ -10,7 +10,6 @@ import {
   AlertCircle,
   Clock3,
 } from "lucide-react";
-import { DashboardCard } from "@/components/ui/dashboard-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useAuth } from "@/contexts/auth-context";
 import { AttendanceRecord, LeaveRequest } from "@/types";
@@ -57,14 +56,14 @@ export function EmployeeDashboard() {
         const todayAttendance =
           mockAttendance.find(
             (record) =>
-              record.employeeId === user.employeeId && record.date === today
+              record.employeeId === user.id && record.date === today
           ) || null;
 
         // Get pending leave requests for the current user
         const pendingLeaves = mockLeaveRequests.filter(
           (request) =>
-            request.employeeId === user.employeeId &&
-            request.status === "pending"
+            request.employeeId === user.id &&
+            request.status === "PENDING"
         ).length;
 
         // Calculate total working hours for current month
@@ -73,7 +72,7 @@ export function EmployeeDashboard() {
         const monthlyAttendance = mockAttendance.filter((record) => {
           const recordDate = new Date(record.date);
           return (
-            record.employeeId === user.employeeId &&
+            record.employeeId === user.id &&
             recordDate.getMonth() === currentMonth &&
             recordDate.getFullYear() === currentYear &&
             record.duration
@@ -93,7 +92,7 @@ export function EmployeeDashboard() {
           : null;
 
         const latestLeave = mockLeaveRequests
-          .filter((request) => request.employeeId === user.employeeId)
+          .filter((request) => request.employeeId === user.id)
           .sort(
             (a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -129,7 +128,7 @@ export function EmployeeDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <LoadingSpinner size="lg" text="Loading dashboard..." />
+        <LoadingSpinner />
       </div>
     );
   }
@@ -168,13 +167,13 @@ export function EmployeeDashboard() {
     }
 
     switch (dashboardData.todayAttendance.status) {
-      case "present":
+      case "PRESENT":
         return <CheckCircle className="h-8 w-8 text-green-500" />;
-      case "half-day":
+      case "HALF_DAY":
         return <Clock className="h-8 w-8 text-yellow-500" />;
-      case "absent":
+      case "ABSENT":
         return <AlertCircle className="h-8 w-8 text-red-500" />;
-      case "leave":
+      case "LEAVE":
         return <Calendar className="h-8 w-8 text-blue-500" />;
       default:
         return <Clock3 className="h-8 w-8 text-muted-foreground" />;
@@ -187,13 +186,13 @@ export function EmployeeDashboard() {
     }
 
     switch (dashboardData.todayAttendance.status) {
-      case "present":
+      case "PRESENT":
         return "Present";
-      case "half-day":
+      case "HALF_DAY":
         return "Half Day";
-      case "absent":
+      case "ABSENT":
         return "Absent";
-      case "leave":
+      case "LEAVE":
         return "On Leave";
       default:
         return "Unknown";
@@ -212,10 +211,10 @@ export function EmployeeDashboard() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-card-foreground">
-              Welcome back, {user.fullName}!
+              Welcome back, {user.firstName} {user.lastName}!
             </h1>
             <p className="text-muted-foreground">
-              Employee ID: {user.employeeId} •{" "}
+              Employee ID: {user.id} •{" "}
               {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
             </p>
           </div>
@@ -224,29 +223,45 @@ export function EmployeeDashboard() {
 
       {/* Primary Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <DashboardCard
-          title="Today's Status"
-          value={getAttendanceStatusText()}
-          icon={() => getAttendanceStatusIcon()}
-        />
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center">
+            {getAttendanceStatusIcon()}
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Today's Status</p>
+              <p className="text-2xl font-bold text-gray-900">{getAttendanceStatusText()}</p>
+            </div>
+          </div>
+        </div>
 
-        <DashboardCard
-          title="Pending Leaves"
-          value={dashboardData.pendingLeaveRequests}
-          icon={Calendar}
-        />
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center">
+            <Calendar className="h-8 w-8 text-blue-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Pending Leaves</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardData.pendingLeaveRequests}</p>
+            </div>
+          </div>
+        </div>
 
-        <DashboardCard
-          title="Monthly Hours"
-          value={`${dashboardData.totalWorkingHours}h`}
-          icon={Clock}
-        />
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center">
+            <Clock className="h-8 w-8 text-green-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Monthly Hours</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardData.totalWorkingHours}h</p>
+            </div>
+          </div>
+        </div>
 
-        <DashboardCard
-          title="Salary"
-          value={user.salary ? `$${user.salary.toLocaleString()}` : "N/A"}
-          icon={DollarSign}
-        />
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex items-center">
+            <DollarSign className="h-8 w-8 text-purple-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Salary</p>
+              <p className="text-2xl font-bold text-gray-900">{user.salary ? `$${user.salary.toLocaleString()}` : "N/A"}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Recent Activity Section */}

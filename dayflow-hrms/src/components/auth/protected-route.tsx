@@ -6,8 +6,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 interface ProtectedRouteProps {
   children: ReactNode
-  allowedRoles?: ('employee' | 'admin')[]
-  requiredRole?: 'employee' | 'admin'
+  allowedRoles?: ('EMPLOYEE' | 'ADMIN')[]
+  requiredRole?: 'EMPLOYEE' | 'ADMIN'
   fallback?: ReactNode
 }
 
@@ -17,19 +17,19 @@ export function ProtectedRoute({
   requiredRole, 
   fallback 
 }: ProtectedRouteProps) {
-  const { user, isLoading, isAuthenticated } = useAuth()
+  const { user, loading } = useAuth()
 
   // Show loading spinner while checking authentication
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner />
       </div>
     )
   }
 
   // If not authenticated, show fallback or redirect message
-  if (!isAuthenticated || !user) {
+  if (!user) {
     return fallback || (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

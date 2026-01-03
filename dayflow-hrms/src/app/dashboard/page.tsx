@@ -6,22 +6,22 @@ import { useAuth } from '@/contexts/auth-context'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 export default function DashboardPage() {
-  const { user, isLoading } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && user) {
-      if (user.role === 'employee') {
+    if (!loading && user) {
+      if (user.role === 'EMPLOYEE') {
         router.replace('/dashboard/employee')
-      } else if (user.role === 'admin') {
-        router.replace('/admin')
+      } else if (user.role === 'ADMIN') {
+        router.replace('/dashboard/admin')
       }
     }
-  }, [user, isLoading, router])
+  }, [user, loading, router])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <LoadingSpinner text="Redirecting..." />
+      <LoadingSpinner />
     </div>
   )
 }

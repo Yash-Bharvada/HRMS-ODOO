@@ -6,25 +6,25 @@ import { useAuth } from "@/contexts/auth-context";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!loading && !user) {
       router.replace(`/login?redirect=${encodeURIComponent(pathname || "/")}`);
     }
-  }, [isAuthenticated, isLoading, pathname, router]);
+  }, [user, loading, pathname, router]);
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
-        <LoadingSpinner text="Checking session..." />
+        <LoadingSpinner />
       </div>
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!user) return null;
 
   return <>{children}</>;
 }

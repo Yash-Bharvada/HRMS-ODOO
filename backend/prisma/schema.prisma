@@ -7,7 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums
+//////////////////////
+// ENUMS
+//////////////////////
+
 enum Role {
   ADMIN
   EMPLOYEE
@@ -41,24 +44,30 @@ enum AuditAction {
   REJECT
 }
 
-// User - Authentication & basic info
-model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  password          String
-  role              Role      @default(EMPLOYEE)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  isActive          Boolean   @default(true)
+//////////////////////
+// USER
+//////////////////////
 
-  employee          Employee?
-  refreshTokens     RefreshToken[]
-  auditLogs         AuditLog[]
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  role          Role      @default(EMPLOYEE)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  employee      Employee?
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
 
   @@index([email])
 }
 
-// Employee Profile
+//////////////////////
+// EMPLOYEE
+//////////////////////
+
 model Employee {
   id                String    @id @default(cuid())
   userId            String    @unique
@@ -84,109 +93,127 @@ model Employee {
   @@index([department])
 }
 
-// Refresh Tokens for JWT rotation
-model RefreshToken {
-  id                String    @id @default(cuid())
-  userId            String
-  token             String    @unique
-  expiresAt         DateTime
-  createdAt         DateTime  @default(now())
+//////////////////////
+// REFRESH TOKEN
+//////////////////////
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
 }
 
-// Attendance Tracking
-model Attendance {
-  id                String    @id @default(cuid())
-  employeeId        String
-  date              DateTime
-  checkInTime       DateTime?
-  checkOutTime      DateTime?
-  status            AttendanceStatus @default(ABSENT)
-  overriddenBy      String?   // Admin ID who overrode
-  overrideReason    String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+//////////////////////
+// ATTENDANCE
+//////////////////////
 
-  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+model Attendance {
+  id             String             @id @default(cuid())
+  employeeId     String
+  date           DateTime           @db.Date
+  checkInTime    DateTime?
+  checkOutTime   DateTime?
+  status         AttendanceStatus   @default(ABSENT)
+  overriddenBy   String?
+  overrideReason String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  employee       Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
 }
 
-// Leave Request & Management
-model Leave {
-  id                String    @id @default(cuid())
-  employeeId        String
-  leaveType         LeaveType
-  startDate         DateTime
-  endDate           DateTime
-  reason            String?
-  status            LeaveStatus @default(PENDING)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+//////////////////////
+// LEAVE
+//////////////////////
 
-  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  approvals         LeaveApproval[]
+model Leave {
+  id         String       @id @default(cuid())
+  employeeId String
+  leaveType  LeaveType
+  startDate  DateTime     @db.Date
+  endDate    DateTime     @db.Date
+  reason     String?
+  status     LeaveStatus  @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  employee   Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  approvals  LeaveApproval[]
 
   @@index([employeeId])
   @@index([status])
   @@index([startDate])
 }
 
-// Leave Approval Workflow
-model LeaveApproval {
-  id                String    @id @default(cuid())
-  leaveId           String
-  approvedBy        String
-  approvalDate      DateTime  @default(now())
-  comments          String?
-  createdAt         DateTime  @default(now())
+//////////////////////
+// LEAVE APPROVAL
+//////////////////////
 
-  leave             Leave     @relation(fields: [leaveId], references: [id], onDelete: Cascade)
-  approver          Employee  @relation(fields: [approvedBy], references: [id], onDelete: Restrict)
+model LeaveApproval {
+  id           String    @id @default(cuid())
+  leaveId      String
+  approvedBy   String
+  approvalDate DateTime  @default(now())
+  comments     String?
+  createdAt    DateTime  @default(now())
+
+  leave        Leave     @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  approver     Employee  @relation(fields: [approvedBy], references: [id], onDelete: Restrict)
 
   @@unique([leaveId, approvedBy])
   @@index([leaveId])
   @@index([approvedBy])
 }
 
-// Payroll Management
-model Payroll {
-  id                String    @id @default(cuid())
-  employeeId        String
-  month             DateTime  // First day of the month
-  baseSalary        Decimal   @db.Decimal(12, 2)
-  allowances        Decimal   @db.Decimal(12, 2) @default(0)
-  deductions        Decimal   @db.Decimal(12, 2) @default(0)
-  netSalary         Decimal   @db.Decimal(12, 2)
-  effectiveDate     DateTime
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+//////////////////////
+// PAYROLL
+//////////////////////
 
-  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+model Payroll {
+  id            String   @id @default(cuid())
+  employeeId    String
+  month         DateTime @db.Date
+  baseSalary    Decimal  @db.Decimal(12, 2)
+  allowances    Decimal  @db.Decimal(12, 2) @default(0)
+  deductions    Decimal  @db.Decimal(12, 2) @default(0)
+  netSalary     Decimal  @db.Decimal(12, 2)
+  effectiveDate DateTime @db.Date
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, month])
   @@index([employeeId])
   @@index([month])
 }
 
-// Audit Log for all critical operations
-model AuditLog {
-  id                String    @id @default(cuid())
-  action            AuditAction
-  userId            String
-  entityType        String    // e.g., "Attendance", "Leave", "Payroll"
-  entityId          String
-  changes           String?   // JSON stringified changes
-  reason            String?
-  createdAt         DateTime  @default(now())
+//////////////////////
+// AUDIT LOG
+//////////////////////
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+model AuditLog {
+  id         String       @id @default(cuid())
+  action     AuditAction
+  userId     String
+  entityType String
+  entityId   String
+  changes    String?
+  reason     String?
+  createdAt  DateTime     @default(now())
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([entityType])

@@ -14,7 +14,7 @@ export default function EmployeesPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <LoadingSpinner text="Redirecting to employee management..." />
+      <LoadingSpinner />
     </div>
   )
 }
